@@ -44,14 +44,47 @@ async function run() {
       const result = await newsCollection.find().skip(skipPages * perPageData).limit(perPageData).toArray();
       res.send(result);
     })
+    app.get('/allCounts', async (req, res) => {
+      const totalNews = await newsCollection.estimatedDocumentCount();
+      const totalUser = await userCollection.estimatedDocumentCount();
+
+      // Limit totalNews count to 1600 if it exceeds
+      const limitedTotalNews = Math.min(totalNews, 1600);
+
+      res.send({
+        totalNews: limitedTotalNews,
+        totalUser: totalUser,
+        
+      });
+    });
+
+
     app.get('/categoryNews', async (req, res) => {
-      const skipPages = parseInt(req.query.skipPages)
-      const category = req.query.category
-      const perPageData = parseInt(req.query.perPageData)
-      const query = { category: category }
-      const result = await newsCollection.find(query).skip(skipPages * perPageData).limit(perPageData).toArray();
-      res.send(result);
-    })
+      const skipPages = parseInt(req.query.skipPages);
+      const category = req.query.category;
+      const perPageData = parseInt(req.query.perPageData);
+      const query = { category: category };
+  
+      // Get the total count of news articles in the specified category
+      const totalCount = await newsCollection.countDocuments(query);
+  
+      // Calculate the total number of pages needed
+      let totalPages = Math.ceil(totalCount / perPageData);
+  
+      // Limit totalPages to a maximum of 1600
+      totalPages = Math.min(totalPages, 1600);
+  
+      // Fetch news articles based on pagination parameters
+      const result = await newsCollection.find(query)
+          .skip(skipPages * perPageData)
+          .limit(perPageData)
+          .toArray();
+  
+      // Send the result along with total pages information
+      res.send({ news: result, totalPages: totalPages });
+  });
+  
+  
     app.get('/searchedNews', async (req, res) => {
       try {
         const searchedText = req.query.searchedText;
@@ -91,6 +124,13 @@ async function run() {
     // for users
     app.post('/user', async (req, res) => {
       const user = req.body
+      const query = { email: req.body.email }
+      const isExisted = await userCollection?.findOne(query)
+      if (isExisted) {
+        return (
+          res.send("already included as an user")
+        )
+      }
       const result = await userCollection.insertOne(user)
       res.send(result)
     }
