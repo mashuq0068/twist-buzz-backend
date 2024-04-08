@@ -41,20 +41,23 @@ async function run() {
     app.get('/allNews', async (req, res) => {
       const skipPages = parseInt(req.query.skipPages)
       const perPageData = parseInt(req.query.perPageData)
+      const totalCount = await newsCollection.estimatedDocumentCount();
+      let totalPages = Math.ceil(totalCount / perPageData);
+      totalPages = Math.min(totalPages, 1600);
       const result = await newsCollection.find().skip(skipPages * perPageData).limit(perPageData).toArray();
-      res.send(result);
+      res.send({ news: result, totalPages: totalPages });
+
     })
     app.get('/allCounts', async (req, res) => {
       const totalNews = await newsCollection.estimatedDocumentCount();
       const totalUser = await userCollection.estimatedDocumentCount();
 
-      // Limit totalNews count to 1600 if it exceeds
       const limitedTotalNews = Math.min(totalNews, 1600);
 
       res.send({
         totalNews: limitedTotalNews,
         totalUser: totalUser,
-        
+
       });
     });
 
@@ -64,27 +67,17 @@ async function run() {
       const category = req.query.category;
       const perPageData = parseInt(req.query.perPageData);
       const query = { category: category };
-  
-      // Get the total count of news articles in the specified category
       const totalCount = await newsCollection.countDocuments(query);
-  
-      // Calculate the total number of pages needed
       let totalPages = Math.ceil(totalCount / perPageData);
-  
-      // Limit totalPages to a maximum of 1600
       totalPages = Math.min(totalPages, 1600);
-  
-      // Fetch news articles based on pagination parameters
       const result = await newsCollection.find(query)
-          .skip(skipPages * perPageData)
-          .limit(perPageData)
-          .toArray();
-  
-      // Send the result along with total pages information
+        .skip(skipPages * perPageData)
+        .limit(perPageData)
+        .toArray();
       res.send({ news: result, totalPages: totalPages });
-  });
-  
-  
+    });
+
+
     app.get('/searchedNews', async (req, res) => {
       try {
         const searchedText = req.query.searchedText;
